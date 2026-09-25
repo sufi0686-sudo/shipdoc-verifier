@@ -1,3 +1,4 @@
+ HEAD
 # Shipping Document Verification System
 
 Reads shipping emails, classifies them, and compares the **Shipping Instruction (SI)** against the **Bill of Lading (BL)** field by field, so discrepancies are caught *before* the BL is finalised. Anything the system is not sure about goes to a human with a specific reason.
@@ -183,3 +184,7 @@ docs/DOCUMENTATION.md  architecture, implementation, challenges, roadmap
 ## License
 
 MIT
+=======
+# https-github.com-sufi0686-sudo-shipdoc-verifier
+ShipDoc Verifier is an AI-assisted document verification system for shipping teams. It compares Shipping Instructions with draft Bills of Lading, extracts key fields, detects mismatches and missing information, and generates amendment emails. It uses rules first, AI for uncertain cases, and human review when needed.
+>>>>>>> d91d62eaf0ac85256c0ed107e95dc51eaf53480d
