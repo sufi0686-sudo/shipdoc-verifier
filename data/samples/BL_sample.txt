@@ -1,0 +1,9 @@
+BILL OF LADING
+BL Number: ONEY8821300
+| Shipper | TECH COMPONENTS MALAYSIA SDN. BHD. |
+| Consignee | SHENZHEN ELECTRONICS TRADING CO LTD |
+| Notify Party | PACIFIC FREIGHT AGENCY LIMITED |
+| Port of Loading | MYPGU |
+| Port of Discharge | YANTIAN |
+| Number of Containers | 4 x 40' HC |
+| Gross Weight | 38,000.00 KGS |

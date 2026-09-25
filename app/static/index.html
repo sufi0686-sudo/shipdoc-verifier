@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SI / BL Verifier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F3F5F7; --sheet:#FFFFFF; --ink:#16233A; --ink-soft:#4A5870; --rule:#C9D2DC;
+  --red:#B42318; --red-bg:#FDECEA; --green:#1F6F4A; --green-bg:#E7F4EC;
+  --amber:#9A5A06; --amber-bg:#FDF3E1; --blue:#23499E;
+  --ui:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --doc:"Courier Prime","Courier New",Courier,monospace;
+  --stamp:"Barlow Condensed","Arial Narrow",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 var(--ui)}
+header{background:var(--ink);color:#fff}
+.bar{max-width:1180px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.brand{font-weight:700;font-size:1.15rem;letter-spacing:.01em}
+.brand span{font-weight:400;opacity:.7;margin-left:8px;font-size:.95rem}
+nav{display:flex;gap:4px;margin-left:auto}
+nav button{background:none;border:0;color:#C8D3E6;font:500 .95rem var(--ui);padding:8px 14px;border-radius:4px;cursor:pointer}
+nav button[aria-selected=true]{background:#fff;color:var(--ink)}
+nav button:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #7FA3F0;outline-offset:2px}
+.health{font-size:.85rem;color:#C8D3E6}
+main{max-width:1180px;margin:0 auto;padding:24px 20px 60px}
+.view[hidden]{display:none}
+.cols{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:24px;align-items:start}
+@media(max-width:900px){.cols{grid-template-columns:minmax(0,1fr)}.cols>*{min-width:0}}
+.panel{background:var(--sheet);border:1px solid var(--rule);border-radius:6px;padding:20px}
+h2{font-size:1.2rem;margin:0 0 4px}
+.hint{color:var(--ink-soft);font-size:.9rem;margin:0 0 16px}
+label{display:block;font-weight:600;font-size:.9rem;margin:14px 0 6px}
+input[type=text],textarea,select{width:100%;font:15px var(--ui);color:var(--ink);border:1px solid var(--rule);border-radius:4px;padding:8px 10px;background:#fff}
+textarea{min-height:70px;resize:vertical}
+textarea.doc{font-family:var(--doc);font-size:13px;min-height:110px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{font:13px var(--doc);background:var(--paper);border:1px solid var(--rule);border-radius:3px;padding:3px 8px;display:flex;gap:6px;align-items:center}
+.chip button{border:0;background:none;cursor:pointer;color:var(--ink-soft);font-size:15px;line-height:1;padding:0}
+.btn{font:600 .95rem var(--ui);border-radius:4px;padding:10px 18px;cursor:pointer;border:1px solid var(--ink);background:var(--ink);color:#fff}
+.btn.ghost{background:#fff;color:var(--ink)}
+.btn:disabled{opacity:.5;cursor:progress}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+details summary{cursor:pointer;font-weight:600;font-size:.9rem;margin-top:14px}
+
+/* ---------- result ---------- */
+.empty{color:var(--ink-soft);text-align:center;padding:60px 20px;border:1px dashed var(--rule);border-radius:6px;background:var(--sheet)}
+.result-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;flex-wrap:wrap}
+.meta{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:.92rem;margin:0}
+.meta dt{color:var(--ink-soft)} .meta dd{margin:0;font-weight:600}
+.conf{display:inline-block;width:90px;height:6px;background:var(--rule);border-radius:3px;vertical-align:middle;margin-left:8px;overflow:hidden}
+.conf i{display:block;height:100%;background:var(--blue)}
+.stamp{font:700 1.6rem/1 var(--stamp);text-transform:uppercase;letter-spacing:.06em;padding:10px 18px;border:4px double currentColor;border-radius:6px;transform:rotate(-6deg);margin:8px 12px 0 0;opacity:.92;white-space:nowrap}
+.stamp.clear{color:var(--green)} .stamp.bad{color:var(--red)} .stamp.review{color:var(--amber)} .stamp.neutral{color:var(--blue)}
+@media (prefers-reduced-motion:no-preference){.stamp.fresh{animation:thud .35s cubic-bezier(.2,1.6,.4,1)}}
+@keyframes thud{from{transform:rotate(-6deg) scale(1.8);opacity:0}to{transform:rotate(-6deg) scale(1);opacity:.92}}
+.reasons{background:var(--amber-bg);border-left:4px solid var(--amber);padding:10px 14px;margin:18px 0 0;border-radius:0 4px 4px 0}
+.reasons strong{color:var(--amber)} .reasons ul{margin:6px 0 0;padding-left:20px}
+
+/* the BL-style form grid */
+.form-grid{margin-top:20px;border:2px solid var(--ink);border-radius:2px;overflow-x:auto}
+.form-grid table{border-collapse:collapse;width:100%;min-width:560px}
+.form-grid th{font:600 .78rem var(--ui);color:var(--ink-soft);text-align:left;padding:6px 10px;border-bottom:2px solid var(--ink);background:var(--paper)}
+.form-grid td{border-top:1px solid var(--rule);padding:0;vertical-align:top}
+.form-grid tr:first-child td{border-top:0}
+.form-grid td+td{border-left:1px solid var(--rule)}
+.cell{padding:8px 10px 10px}
+.cell small{display:block;font:500 .72rem var(--ui);color:var(--ink-soft);margin-bottom:2px}
+.cell .v{font:14px/1.35 var(--doc);word-break:break-word}
+.cell .n{font:12px var(--doc);color:var(--ink-soft);margin-top:2px}
+tr.mismatch td.val{background:var(--red-bg)} tr.uncertain td.val{background:var(--amber-bg)}
+.form-grid td.status{font:600 .9rem var(--ui);padding:8px 10px 10px;min-width:120px}
+.form-grid td.status small{display:block;font:500 .72rem var(--ui);color:var(--ink-soft);margin-bottom:2px}
+.status.match{color:var(--green)} .status.mismatch{color:var(--red)} .status.uncertain,.status.not_found{color:var(--amber)}
+pre.json{font:13px/1.45 var(--doc);background:var(--ink);color:#E6ECF5;padding:14px;border-radius:4px;overflow:auto;max-height:340px}
+.docs{font-size:.88rem;color:var(--ink-soft);margin-top:10px}
+
+/* batch + review */
+.stats{display:flex;gap:28px;flex-wrap:wrap;margin:16px 0}
+.stats div{font-size:.9rem;color:var(--ink-soft)} .stats b{display:block;font-size:1.6rem;color:var(--ink)}
+table.list{width:100%;border-collapse:collapse;font-size:.92rem}
+table.list th{text-align:left;font-weight:600;color:var(--ink-soft);border-bottom:2px solid var(--ink);padding:8px}
+table.list td{border-bottom:1px solid var(--rule);padding:8px}
+table.list tr.click{cursor:pointer} table.list tr.click:hover td{background:var(--paper)}
+.tag{font:600 .8rem var(--ui);padding:2px 8px;border-radius:3px;white-space:nowrap}
+.tag.bad{background:var(--red-bg);color:var(--red)} .tag.ok{background:var(--green-bg);color:var(--green)} .tag.rev{background:var(--amber-bg);color:var(--amber)}
+.table-wrap{overflow-x:auto}
+.review-item{border:1px solid var(--rule);border-radius:6px;padding:16px;margin-top:14px;background:var(--sheet)}
+.error{color:var(--red);font-weight:600;margin-top:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">SI / BL Verifier<span>Shipping Document Verification System</span></div>
+    <nav role="tablist">
+      <button role="tab" aria-selected="true" data-view="check">Check an email</button>
+      <button role="tab" aria-selected="false" data-view="batch">Check an inbox</button>
+      <button role="tab" aria-selected="false" data-view="review">Review queue <span id="qcount"></span></button>
+    </nav>
+    <div class="health" id="health">Connecting…</div>
+  </div>
+</header>
+
+<main>
+<!-- ================= CHECK ONE EMAIL ================= -->
+<section class="view" id="view-check">
+  <div class="cols">
+    <form class="panel" id="checkForm">
+      <h2>Email to check</h2>
+      <p class="hint">Load a sample, or paste an email and attach the SI and BL (text, PDF, Word or a scan).</p>
+      <label for="sample">Load a sample email</label>
+      <select id="sample"><option value="">Choose a sample…</option></select>
+      <label for="subject">Subject</label>
+      <input type="text" id="subject" placeholder="Please compare SI vs draft BL">
+      <label for="body">Body</label>
+      <textarea id="body" placeholder="Hi team, please check the attached…"></textarea>
+      <label for="files">Attachments</label>
+      <input type="file" id="files" multiple accept=".txt,.pdf,.docx,.png,.jpg,.jpeg,.tif,.tiff,.md,.csv">
+      <div class="chips" id="chips"></div>
+      <details>
+        <summary>Or paste document text</summary>
+        <label for="siText">Shipping Instruction</label>
+        <textarea class="doc" id="siText" placeholder="Shipper: …"></textarea>
+        <label for="blText">Bill of Lading</label>
+        <textarea class="doc" id="blText" placeholder="Shipper: …"></textarea>
+      </details>
+      <div class="row">
+        <button class="btn" type="submit" id="runBtn">Check email</button>
+        <button class="btn ghost" type="button" id="clearBtn">Clear</button>
+      </div>
+      <div class="error" id="checkError" role="alert"></div>
+    </form>
+    <div id="result"><div class="empty">Results appear here: the category, a field-by-field SI vs BL comparison, and the JSON output.</div></div>
+  </div>
+</section>
+
+<!-- ================= BATCH ================= -->
+<section class="view" id="view-batch" hidden>
+  <div class="panel">
+    <h2>Check a whole inbox</h2>
+    <p class="hint">Upload an inbox as JSON (a list of emails), or run the built-in sample inbox.</p>
+    <div class="row">
+      <input type="file" id="inboxFile" accept=".json">
+      <button class="btn" id="batchBtn">Check inbox</button>
+      <button class="btn ghost" id="sampleBatchBtn">Run the sample inbox</button>
+      <button class="btn ghost" id="downloadBtn" hidden>Download results.json</button>
+    </div>
+    <div class="error" id="batchError" role="alert"></div>
+    <div id="batchOut"></div>
+  </div>
+  <div id="batchDetail" style="margin-top:24px"></div>
+</section>
+
+<!-- ================= REVIEW ================= -->
+<section class="view" id="view-review" hidden>
+  <div class="panel">
+    <h2>Review queue</h2>
+    <p class="hint">Emails the system was not sure about. Confirm its result or correct it.</p>
+    <div id="reviewList"></div>
+  </div>
+</section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const squash = v => String(v ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+const readAs = (raw, norm) => norm != null && squash(raw) !== squash(norm) ? `<div class="n">read as ${esc(norm)}</div>` : "";
+const CATS = {doc_comparison:"Document comparison", si_request:"SI request", invoice:"Invoice", general_update:"General update", spam:"Spam"};
+let samples = [], sampleAtts = [], lastBatch = null;
+
+/* ---------- tabs ---------- */
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.setAttribute("aria-selected", x === b));
+  document.querySelectorAll(".view").forEach(v => v.hidden = v.id !== "view-" + b.dataset.view);
+  if (b.dataset.view === "review") loadReview();
+});
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || `Request failed (${r.status})`);
+  return r.json();
+}
+
+async function refreshHealth() {
+  try {
+    const h = await api("/api/health");
+    $("#health").textContent = `${h.processed} checked, ${h.escalated} escalated` + (h.llm_enabled ? ", LLM on" : "");
+    const q = await api("/api/review-queue");
+    $("#qcount").textContent = q.length ? `(${q.length})` : "";
+  } catch { $("#health").textContent = "Server not reachable"; }
+}
+
+/* ---------- samples ---------- */
+api("/api/samples").then(s => {
+  samples = s;
+  $("#sample").innerHTML += s.map((e, i) => `<option value="${i}">${esc(e.email_id)}: ${esc(e.subject)}</option>`).join("");
+});
+$("#sample").onchange = e => {
+  const s = samples[e.target.value]; if (!s) return;
+  $("#subject").value = s.subject; $("#body").value = s.body;
+  sampleAtts = (s.attachments || []).map(a => ({name: a.filename, text: a.content}));
+  $("#files").value = ""; renderChips();
+};
+function renderChips() {
+  $("#chips").innerHTML = sampleAtts.map((a, i) => `<span class="chip">${esc(a.name)}<button type="button" aria-label="Remove ${esc(a.name)}" data-i="${i}">×</button></span>`).join("");
+  $("#chips").querySelectorAll("button").forEach(b => b.onclick = () => { sampleAtts.splice(b.dataset.i, 1); renderChips(); });
+}
+$("#clearBtn").onclick = () => { $("#checkForm").reset(); sampleAtts = []; renderChips(); $("#checkError").textContent = ""; };
+
+/* ---------- check one ---------- */
+$("#checkForm").onsubmit = async e => {
+  e.preventDefault();
+  const fd = new FormData();
+  fd.append("subject", $("#subject").value); fd.append("body", $("#body").value);
+  const s = samples[$("#sample").value]; if (s && s.subject === $("#subject").value) fd.append("email_id", s.email_id);
+  for (const f of $("#files").files) fd.append("files", f);
+  sampleAtts.forEach(a => fd.append("files", new File([a.text], a.name, {type: "text/plain"})));
+  if ($("#siText").value.trim()) fd.append("files", new File([$("#siText").value], "SI_pasted.txt"));
+  if ($("#blText").value.trim()) fd.append("files", new File([$("#blText").value], "BL_pasted.txt"));
+  $("#runBtn").disabled = true; $("#runBtn").textContent = "Checking…"; $("#checkError").textContent = "";
+  try { $("#result").innerHTML = renderReport(await api("/api/process-upload", {method: "POST", body: fd}), true); refreshHealth(); }
+  catch (err) { $("#checkError").textContent = err.message; }
+  finally { $("#runBtn").disabled = false; $("#runBtn").textContent = "Check email"; }
+};
+
+function verdict(r) {
+  if (r.category !== "doc_comparison") return r.needs_human_review ? ["review", "Needs review"] : ["neutral", CATS[r.category] || r.category];
+  if (!r.field_comparison) return ["review", "Needs review"];
+  if (r.mismatch_found) return ["bad", "Discrepancy"];
+  return r.needs_human_review ? ["review", "Needs review"] : ["clear", "Clear"];
+}
+
+function renderReport(r, fresh) {
+  const [cls, word] = verdict(r);
+  const submission = {email_id: r.email_id, category: r.category, mismatch_found: r.mismatch_found, mismatched_fields: r.mismatched_fields, needs_human_review: r.needs_human_review};
+  const rows = (r.field_comparison || []).map(c => `
+    <tr class="${c.status}">
+      <td><div class="cell"><small>Field</small><div>${esc(c.label)}</div></div></td>
+      <td class="val"><div class="cell"><small>Shipping Instruction</small><div class="v">${esc(c.si ?? "—")}</div>${readAs(c.si, c.si_normalized)}</div></td>
+      <td class="val"><div class="cell"><small>Bill of Lading</small><div class="v">${esc(c.bl ?? "—")}</div>${readAs(c.bl, c.bl_normalized)}</div></td>
+      <td class="status ${c.status}"><small>Result</small>${{match:"Match", mismatch:"Mismatch", uncertain:"Check", not_found:"Not found"}[c.status]}${c.note ? `<div class="n" style="font-weight:400">${esc(c.note)}</div>` : ""}</td>
+    </tr>`).join("");
+  return `<div class="panel">
+    <div class="result-head">
+      <dl class="meta">
+        <dt>Email</dt><dd>${esc(r.email_id)}</dd>
+        <dt>Category</dt><dd>${esc(CATS[r.category] || r.category)}</dd>
+        <dt>Confidence</dt><dd>${Math.round(r.confidence * 100)}%<span class="conf"><i style="width:${r.confidence * 100}%"></i></span></dd>
+        <dt>Decided by</dt><dd>${esc(r.classified_by)} in ${r.processing_ms} ms</dd>
+      </dl>
+      <div class="stamp ${cls} ${fresh ? "fresh" : ""}">${word}</div>
+    </div>
+    ${r.review_reasons.length ? `<div class="reasons"><strong>Sent to human review</strong><ul>${r.review_reasons.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+    ${rows ? `<div class="form-grid"><table><tbody>${rows}</tbody></table></div>` : ""}
+    <p class="docs">${r.documents.length ? "Documents read: " + r.documents.map(d => `${esc(d.filename)} (${d.detected_type || "unknown type"})`).join(", ") : "No attachments."}${r.notes.length ? ". " + r.notes.map(esc).join("; ") : ""}</p>
+    <details><summary>JSON output</summary><pre class="json">${esc(JSON.stringify(submission, null, 2))}</pre></details>
+  </div>`;
+}
+
+/* ---------- batch ---------- */
+async function runBatch(payload) {
+  $("#batchError").textContent = ""; $("#batchOut").innerHTML = "<p class='hint'>Checking…</p>"; $("#batchDetail").innerHTML = "";
+  try {
+    const d = await api("/api/batch", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)});
+    lastBatch = d; $("#downloadBtn").hidden = false; refreshHealth();
+    const s = d.summary;
+    $("#batchOut").innerHTML = `
+      <div class="stats"><div><b>${s.total}</b>emails</div><div><b>${s.mismatches}</b>with discrepancies</div><div><b>${s.escalated}</b>sent to review</div><div><b>${s.avg_ms} ms</b>average per email</div></div>
+      <div class="table-wrap"><table class="list"><thead><tr><th>Email</th><th>Subject</th><th>Category</th><th>Result</th></tr></thead><tbody>
+      ${d.reports.map((r, i) => `<tr class="click" tabindex="0" data-i="${i}"><td>${esc(r.email_id)}</td><td>${esc(r.subject)}</td><td>${esc(CATS[r.category] || r.category)}</td>
+        <td>${r.mismatch_found ? '<span class="tag bad">Discrepancy</span> ' : r.category === "doc_comparison" && r.field_comparison ? '<span class="tag ok">Clear</span> ' : ""}${r.needs_human_review ? '<span class="tag rev">Review</span>' : ""}</td></tr>`).join("")}
+      </tbody></table></div>`;
+    $("#batchOut").querySelectorAll("tr.click").forEach(tr => {
+      const open = () => { $("#batchDetail").innerHTML = renderReport(d.reports[tr.dataset.i], true); $("#batchDetail").scrollIntoView({behavior: "smooth"}); };
+      tr.onclick = open; tr.onkeydown = e => e.key === "Enter" && open();
+    });
+  } catch (err) { $("#batchOut").innerHTML = ""; $("#batchError").textContent = err.message; }
+}
+$("#sampleBatchBtn").onclick = () => runBatch(samples);
+$("#batchBtn").onclick = async () => {
+  const f = $("#inboxFile").files[0];
+  if (!f) { $("#batchError").textContent = "Choose an inbox JSON file first, or run the sample inbox."; return; }
+  try { runBatch(JSON.parse(await f.text())); } catch { $("#batchError").textContent = "That file is not valid JSON."; }
+};
+$("#downloadBtn").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(lastBatch.results, null, 2)], {type: "application/json"}));
+  a.download = "results.json"; a.click();
+};
+
+/* ---------- review ---------- */
+async function loadReview() {
+  const items = await api("/api/review-queue");
+  if (!items.length) { $("#reviewList").innerHTML = "<p class='hint'>Nothing to review. Emails the system is unsure about will appear here.</p>"; return; }
+  $("#reviewList").innerHTML = items.map(it => `
+    <div class="review-item" data-id="${esc(it.email_id)}">
+      <strong>${esc(it.email_id)}</strong>: ${esc(it.report.subject)}
+      <ul>${it.report.review_reasons.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+      <div class="row" style="margin-top:8px;align-items:center">
+        <button class="btn" data-act="confirm">Confirm result</button>
+        <select aria-label="Correct category">${Object.entries(CATS).map(([k, v]) => `<option value="${k}" ${k === it.report.category ? "selected" : ""}>${v}</option>`).join("")}</select>
+        <select aria-label="Correct mismatch result"><option value="">Keep mismatch result</option><option value="true">Mismatch</option><option value="false">No mismatch</option></select>
+        <button class="btn ghost" data-act="override">Save correction</button>
+      </div>
+    </div>`).join("");
+  $("#reviewList").querySelectorAll(".review-item").forEach(el => {
+    const id = el.dataset.id, [catSel, mmSel] = el.querySelectorAll("select");
+    el.querySelector('[data-act=confirm]').onclick = () => resolve(id, {decision: "confirmed"});
+    el.querySelector('[data-act=override]').onclick = () => resolve(id, {decision: "overridden", category: catSel.value, mismatch_found: mmSel.value === "" ? null : mmSel.value === "true"});
+  });
+}
+async function resolve(id, body) {
+  await api(`/api/review-queue/${encodeURIComponent(id)}/resolve`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  loadReview(); refreshHealth();
+}
+
+refreshHealth();
+</script>
+</body>
+</html>
